@@ -85,19 +85,19 @@ void readMAX30100(){
 }
 
 void displayHeartRate(){
-   Serial.print("Heart rate:\n");
-   Serial.print(pox.getHeartRate());
+   Serial.print("Heart rate: ");
+   Serial.print(String(pox.getHeartRate()) + " BPM \n");
    display.setFont(ArialMT_Plain_10);
-   display.setTextAlignment(TEXT_ALIGN_CENTER);
+   display.setTextAlignment(TEXT_ALIGN_LEFT);
    display.drawString(0, 0,"BPM : ..." + String(pox.getHeartRate()));
    display.display();
 }
 
 void displaySPO2(){
-   Serial.print("BPM / SpO2: \n");
+   Serial.print("BPM / SpO2: ");
    Serial.print(String(pox.getSpO2()) + "% \n");
    display.setFont(ArialMT_Plain_10);
-   display.setTextAlignment(TEXT_ALIGN_CENTER);
+   display.setTextAlignment(TEXT_ALIGN_LEFT);
    display.drawString(0, 32,"SP02 : ..." + String(pox.getSpO2()) + "%");
    display.display();
 }
