@@ -18,7 +18,7 @@ double tempF = 0;
 void setupOLEDDisplay();
 void setupMAX30100Sensor();
 void displayHeartRate();
-void readPulseOximeter();
+void readHealth();
 void readTemperature();
 void displaySPO2();
 void displayTemperature();
@@ -82,24 +82,31 @@ void setupMAX30100Sensor(){
 
 
 
-void readPulseOximeter(){
+void readHealth(){
   
   pox.update();
+  readTemperature();
   
   if (millis() - tsLastReport > REPORTING_PERIOD_MS) {
     display.clear();
     displayHeartRate();
     displaySPO2();
+    displayTemperature(); 
     tsLastReport = millis();
   }
 }
 
 void readTemperature(){
+  rawValue= 0;
+  voltage = 0;
+  tempC = 0;
+  tempF = 0;
+
   rawValue = analogRead(analogIn);
   voltage = (rawValue / 2048.0) * 3300; // 5000 to get millivots.
   tempC = voltage * 0.1;
   tempF = (tempC * 1.8) + 32; // conver to F
-  displayTemperature(); 
+ 
 }
 
 void displayHeartRate(){
@@ -135,11 +142,9 @@ void displayTemperature(){
   display.drawString(0, 32,"Temp : ..." + String(tempC) + " C");
   display.drawString(0, 48,"Temp : ..." + String(tempF) + " F");
   display.display();
-  delay(10000);
 }
 
 
 void loop() {
-    readPulseOximeter();
-    readTemperature();
+    readHealth();
 }
