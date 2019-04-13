@@ -97,11 +97,6 @@ void readHealth(){
 }
 
 void readTemperature(){
-  rawValue= 0;
-  voltage = 0;
-  tempC = 0;
-  tempF = 0;
-
   rawValue = analogRead(analogIn);
   voltage = (rawValue / 2048.0) * 3300; // 5000 to get millivots.
   tempC = voltage * 0.1;
