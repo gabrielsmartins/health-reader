@@ -1,18 +1,28 @@
 #include "SSD1306.h" 
 #include "MAX30100_PulseOximeter.h"
-#define REPORTING_PERIOD_MS 1000
+#define REPORTING_PERIOD_MS 1500
 
 
 SSD1306  display(0x3c, 5, 4);
 
 PulseOximeter pox;
-
 uint32_t tsLastReport = 0;
 
+const int analogIn = A0;
+ 
+int rawValue= 0;
+double voltage = 0;
+double tempC = 0;
+double tempF = 0;
+
 void setupOLEDDisplay();
-void setupMAX30100();
+void setupMAX30100Sensor();
 void displayHeartRate();
+void readPulseOximeter();
+void readTemperature();
 void displaySPO2();
+void displayTemperature();
+
 
 void setup() {
   Serial.begin(115200);
@@ -20,7 +30,7 @@ void setup() {
   Serial.println();
 
   setupOLEDDisplay();
-  setupMAX30100();
+  setupMAX30100Sensor();
 }
 
 void setupOLEDDisplay(){
@@ -39,7 +49,7 @@ void onBeatDetected()
    Serial.println("Beat!");
 }
 
-void setupMAX30100(){
+void setupMAX30100Sensor(){
   display.clear();
   Serial.print("Initializing pulse oximeter...\n");
   display.setFont(ArialMT_Plain_10);
@@ -59,7 +69,7 @@ void setupMAX30100(){
     display.setTextAlignment(TEXT_ALIGN_LEFT);
     display.clear();
     display.drawStringMaxWidth(0, 0, 128,"Trying to intilize MAX30100 sensor ..." );
-    display.drawStringMaxWidth(0, 32, 128,"Failed ..." );
+    display.drawStringMaxWidth(0, 16, 128,"Failed ..." );
     display.display();
   }
 
@@ -72,7 +82,7 @@ void setupMAX30100(){
 
 
 
-void readMAX30100(){
+void readPulseOximeter(){
   
   pox.update();
   
@@ -82,6 +92,14 @@ void readMAX30100(){
     displaySPO2();
     tsLastReport = millis();
   }
+}
+
+void readTemperature(){
+  rawValue = analogRead(analogIn);
+  voltage = (rawValue / 2048.0) * 3300; // 5000 to get millivots.
+  tempC = voltage * 0.1;
+  tempF = (tempC * 1.8) + 32; // conver to F
+  displayTemperature(); 
 }
 
 void displayHeartRate(){
@@ -98,12 +116,30 @@ void displaySPO2(){
    Serial.print(String(pox.getSpO2()) + "% \n");
    display.setFont(ArialMT_Plain_10);
    display.setTextAlignment(TEXT_ALIGN_LEFT);
-   display.drawString(0, 32,"SP02 : ..." + String(pox.getSpO2()) + "%");
+   display.drawString(0, 16,"SP02 : ..." + String(pox.getSpO2()) + "%");
    display.display();
 }
 
+void displayTemperature(){
+  Serial.print("Raw Value = " ); // shows pre-scaled value
+  Serial.print(rawValue);
+  Serial.print("\t milli volts = "); // shows the voltage measured
+  Serial.print(voltage,0); //
+  Serial.print("\t Temperature in C = ");
+  Serial.print(tempC,1);
+  Serial.print("\t Temperature in F = ");
+  Serial.println(tempF,1);
+
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 32,"Temp : ..." + String(tempC) + " C");
+  display.drawString(0, 48,"Temp : ..." + String(tempF) + " F");
+  display.display();
+  delay(10000);
+}
 
 
 void loop() {
-    readMAX30100();
+    readPulseOximeter();
+    readTemperature();
 }
