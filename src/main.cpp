@@ -1,6 +1,8 @@
 #include "SSD1306.h" 
 #include "MAX30100_PulseOximeter.h"
-#define REPORTING_PERIOD_MS 1500
+#include "WiFi.h"
+
+#define REPORTING_PERIOD_MS 1000
 
 
 SSD1306  display(0x3c, 5, 4);
@@ -15,8 +17,12 @@ double voltage = 0;
 double tempC = 0;
 double tempF = 0;
 
+char* ssid = "NET_2G468822";
+char* password = "51468822";
+
 void setupOLEDDisplay();
 void setupMAX30100Sensor();
+void setupWifi();
 void displayHeartRate();
 void readHealth();
 void readTemperature();
@@ -30,6 +36,7 @@ void setup() {
   Serial.println();
 
   setupOLEDDisplay();
+  setupWifi();
   setupMAX30100Sensor();
 }
 
@@ -42,6 +49,35 @@ void setupOLEDDisplay(){
    display.drawStringMaxWidth(0, 0, 128, "Initializing Health Reader ..." );
    display.display();
    delay(10000);
+}
+
+void setupWifi(){
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  WiFi.begin(ssid, password); 
+ 
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+
+  while (WiFi.status() != WL_CONNECTED) { 
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+    display.drawStringMaxWidth(0, 0, 128,"Connecting to WiFi..." );
+    display.display();
+       if(WiFi.status() == WL_CONNECT_FAILED){
+          display.drawStringMaxWidth(0, 32, 128,"Failed to connect to WiFi..." );
+          display.display();
+       }
+    Serial.println("Wifi Status ..." + String(WiFi.status()));
+  }
+  display.clear();
+  Serial.println("Connected to the WiFi network.");
+  display.drawStringMaxWidth(0, 0, 128,"Connected to the WiFi network." );
+  display.display();
+  delay(1000);
+  display.clear();
 }
 
 void onBeatDetected()
