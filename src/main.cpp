@@ -5,8 +5,8 @@
 #include "NTPClient.h"
 #include "HTTPClient.h"
 
-#define REPORTING_PERIOD_MS 1000
-
+#define REPORTING_DISPLAY_PERIOD_MS 1000
+#define REPORTING_REQUEST_PERIOD_MS 10000
 
 /************************
 ***** Display OLED *****
@@ -158,24 +158,30 @@ void sendHttpRequest(int patientId, String measurementType, String measurementUn
         httpClient.addHeader("Content-Type", "application/json");             //Specify content-type header
         
         timeClient.begin();
+        timeClient.setTimeOffset(3600);
         while(!timeClient.update()) {
            timeClient.forceUpdate();
         }
-        String formattedDate = timeClient.getFormattedDate();
+        String formattedDateTime = timeClient.getFormattedDate();
+        int splitT = formattedDateTime.indexOf("T");
+        String formattedDate = formattedDateTime.substring(0,splitT);
+        String timeStamp = formattedDateTime.substring(splitT+1, formattedDateTime.length()-1);
 
-        Serial.println("Datetime :" + formattedDate);
+        String dateTime = formattedDate + " " + timeStamp;
+        Serial.println("Datetime :" + dateTime);
 
-        String body = "{ \"patient\" : " + String(patientId) +
-                          "\"datetime\" :" + String() +
-                          "\"measurement_type\" : " + measurementType + 
-                          "\"measurement_value\" : " + String(mesaurementValue) + 
-                          "\"measurement_unit\" : " + String(measurementUnit) +
+        String body = "{ \"patient_id\" : " + String(patientId) + ","
+                          "\"datetime\" : \"" + String(dateTime) + "\","
+                          "\"measurement_type\" :  \"" + measurementType + "\","
+                          "\"measurement_value\" : " + String(mesaurementValue) + ","
+                          "\"measurement_unit\" :  \"" + String(measurementUnit) + "\"" +
                       "}";
 
-        
+        Serial.println("JSON :" + body);
 
         int httpResponseCode = httpClient.POST(body);   //Send the actual POST request
-        
+        Serial.println("Http Response Code : " + String(httpResponseCode));
+
         if(httpResponseCode>0){
         
             String response = httpClient.getString();                       //Get the response to the request
@@ -210,7 +216,7 @@ void readHealth(){
   double tempF = convertTemperatureToFahrenheit(tempC);
   
   
-  if (millis() - tsLastReport > REPORTING_PERIOD_MS) {
+  if (millis() - tsLastReport > REPORTING_DISPLAY_PERIOD_MS) {
 
     float hearRate = pox.getHeartRate();
     uint8_t spO2Value = pox.getSpO2();
@@ -239,7 +245,8 @@ void readHealth(){
       String measurementType = "HEARTRATE";
       String measurementUnit = "BPM";
       double measurementValue = hearRate;
-      //sendHttpRequest(patientId, measurementType, measurementUnit, measurementValue);
+      if(measurementValue > 0)
+        sendHttpRequest(patientId, measurementType, measurementUnit, measurementValue);
       tsLastReport = millis();
   }
 }
