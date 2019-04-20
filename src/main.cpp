@@ -4,7 +4,6 @@
 #include "WiFiUdp.h"
 #include "NTPClient.h"
 #include "HTTPClient.h"
-#include <string.h>
 
 #define REPORTING_DISPLAY_PERIOD_MS 1000
 #define REPORTING_API_PERIOD_MS 3000
@@ -329,7 +328,7 @@ bool isValidMeasurement(Measurement measurement){
 
 bool isDifferentTypeFromPrevious(Measurement measurement){
   int previousIndex = measurementIndex >= MAX_MEASUREMENTS_VALUES ? 0 : measurementIndex;
-  if(measurementData[previousIndex].measurementType.length() == measurement.measurementType.length()){
+  if(measurementData[previousIndex].measurementType.equals(measurement.measurementType)){
     return false;
   }
   return true;
