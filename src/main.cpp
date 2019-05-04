@@ -8,8 +8,7 @@
 #define REPORTING_DISPLAY_PERIOD_MS 1000
 #define REPORTING_API_PERIOD_MS 3000
 #define MAX_MEASUREMENTS_VALUES 100
-#define MAX_REPORT_API_VALUES 10
-
+#define MAX_MEASUREMENTS_VALUES_API 5
 
 
 /************************
@@ -62,10 +61,12 @@ typedef struct {
     String measurementUnit;
 } Measurement;
 
-Measurement measurementData[MAX_MEASUREMENTS_VALUES] = {0,"0000-00-00 00:00:00","",0,""};
+
+Measurement measurementData[MAX_MEASUREMENTS_VALUES];
 
 int measurementIndex = 0;
 
+void loop2(void*z);
 void setupOLEDDisplay();
 void setupMAX30100Sensor();
 void setupWifi();
@@ -81,11 +82,10 @@ Measurement buildHeartRateMeasurement(double heartRateValue);
 Measurement buildSpo2Measurement(double spO2Value);
 Measurement buildTemperatureMeasurement(double tempC);
 int fillMeasurementData(Measurement measurement);
-void sendHealthData();
+void sendHealthData(Measurement* measurements);
 String getFormattedDateTime();
 bool isValidMeasurement(Measurement measurement);
 bool isDifferentTypeFromPrevious(Measurement measurement);
-
 
 
 void setup() {
@@ -107,12 +107,14 @@ void setupOLEDDisplay(){
    display.setTextAlignment(TEXT_ALIGN_LEFT);
    display.drawStringMaxWidth(0, 0, 128, "Initializing Health Reader ..." );
    display.display();
-   delay(10000);
+   delay(5000);
 }
 
+
 void setupNTPClientTime(){
+ Serial.println("Initializing NTP Client Time ...\n");
  timeClient.begin();
- timeClient.setTimeOffset(3600);
+ timeClient.setTimeOffset(60000);
 }
 
 void setupWifi(){
@@ -266,12 +268,9 @@ void sendHttpRequest(Measurement measurement){
         httpClient.end();  //Free resources
  
  }else{
- 
     Serial.println("Error in WiFi connection");   
- 
  }
- 
-  delay(10000);  //Send a request every 10 seconds
+
 }
 
 
@@ -288,6 +287,8 @@ void readHealth(){
 
   if (millis() - tsLastReport > REPORTING_DISPLAY_PERIOD_MS) {
       display.clear();
+      display.setFont(ArialMT_Plain_10);
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
       displayHeartRate(heartRate);
       displaySPO2(spO2);
       displayTemperature(tempC,tempF); 
@@ -295,21 +296,19 @@ void readHealth(){
       fillMeasurementData(buildHeartRateMeasurement(heartRate));
       fillMeasurementData(buildSpo2Measurement(spO2));
       fillMeasurementData(buildTemperatureMeasurement(tempC));
+      
       tsLastReport = millis();
   }
-
-    
-  
 }
 
+
+
+
 int fillMeasurementData(Measurement measurement){
-   Serial.println("Measurement Index :" + String(measurementIndex));
-   if( isValidMeasurement(measurement) && isDifferentTypeFromPrevious(measurement)){
-     measurementIndex = measurementData[measurementIndex].patientId == 0 ? measurementIndex : measurementIndex++;
-     measurementIndex = measurementIndex >= MAX_MEASUREMENTS_VALUES ? 0 : measurementIndex;
-     measurementData[measurementIndex] = measurement;
-     measurementIndex = measurementIndex+1;
-   }
+   measurementIndex = measurementIndex > (MAX_MEASUREMENTS_VALUES-1) ? 0 : measurementIndex;
+   Serial.println("***** Measurement Index :" + String(measurementIndex));
+   measurementData[measurementIndex] = measurement;
+   measurementIndex++;
    return measurementIndex;
 }
 
@@ -326,24 +325,28 @@ bool isValidMeasurement(Measurement measurement){
     return false;
 }
 
-bool isDifferentTypeFromPrevious(Measurement measurement){
-  int previousIndex = measurementIndex >= MAX_MEASUREMENTS_VALUES ? 0 : measurementIndex;
-  if(measurementData[previousIndex].measurementType.equals(measurement.measurementType)){
+bool isDifferentTypeFromPrevious(Measurement* measurements,int size, Measurement measurement){
+  int index = 0;
+  int previousIndex = index >= size ? 0 : measurementIndex;
+  Serial.println("Previous Index : " + String(previousIndex));
+  Serial.println("Current Index : " + String(previousIndex + 1));
+  Serial.println("Previous Measurement : " + String(measurementData[previousIndex].measurementType));
+  Serial.println("Current Measurement : " + String(measurement.measurementType));
+  if(measurements[previousIndex].measurementType.equals(measurement.measurementType)){
+    Serial.println("Equal");
     return false;
   }
+  Serial.println("Different");
   return true;
 }
 
 
-void sendHealthData(){
-   display.setFont(ArialMT_Plain_10);
-   display.setTextAlignment(TEXT_ALIGN_LEFT);
-
-   for(int i=0; i < MAX_REPORT_API_VALUES; i++){
+void sendHealthData(Measurement* measurements){
+   for(int i=0; i < MAX_MEASUREMENTS_VALUES_API; i++){
       display.clear();
-      display.drawString(0, 0, "Storing health data : ..." + String(i+1) + "/" + String(MAX_MEASUREMENTS_VALUES));
+      display.drawString(0, 0, "Storing health data : ..." + String(i+1) + "/" + String(MAX_MEASUREMENTS_VALUES_API));
       display.display();
-      Measurement measurement = measurementData[i];
+      Measurement measurement = measurements[i];
       sendHttpRequest(measurement);
    }
 }
@@ -362,9 +365,6 @@ double convertTemperatureToFahrenheit(double tempC){
 void displayHeartRate(float heartRate){
    Serial.print("\tHeart rate: ");
    Serial.print(String(heartRate) + " BPM \t");
-   
-   display.setFont(ArialMT_Plain_10);
-   display.setTextAlignment(TEXT_ALIGN_LEFT);
    display.drawString(0, 0,"BPM : ..." + String(heartRate));
    display.display();
 }
@@ -372,33 +372,44 @@ void displayHeartRate(float heartRate){
 void displaySPO2(float spO2){
    Serial.print("BPM / SpO2: ");
    Serial.print(String(spO2) + "% \n");
-
-   display.setFont(ArialMT_Plain_10);
-   display.setTextAlignment(TEXT_ALIGN_LEFT);
    display.drawString(0, 16,"SP02 : ..." + String(spO2) + "%");
    display.display();
 }
 
 void displayTemperature(double tempC, double tempF){
-
   Serial.print("\t Temperature in C = ");
   Serial.print(tempC,1);
   Serial.print("\t Temperature in F = ");
   Serial.print(tempF,1);
-
-
-
-  display.setFont(ArialMT_Plain_10);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(0, 32,"Temp : ..." + String(tempC) + " C");
   display.drawString(0, 48,"Temp : ..." + String(tempF) + " F");
   display.display();
 }
 
+Measurement* filterValidMeasurements(Measurement* measurements){
+  Measurement validMeasurements[MAX_MEASUREMENTS_VALUES_API];
+  int i = 0;
+  int j = 0;
+  while( j < MAX_MEASUREMENTS_VALUES_API || i < MAX_MEASUREMENTS_VALUES){
+    while(i < MAX_MEASUREMENTS_VALUES){
+      String measurement = String(measurements[i].measurementType) + "-" + String(measurements[i].measurementValue) + "-" + String(measurements[i].measurementUnit);
+      Serial.println("Measurement [" + String(i+1) + "] :" + measurement);
+      if(isValidMeasurement(measurementData[i])){
+        validMeasurements[j] = measurementData[i];
+        j++;
+      }
+      i++;
+    }
+  }
+  return validMeasurements;
+}
 
 void loop() {
-  readHealth();
-  if(measurementIndex == MAX_MEASUREMENTS_VALUES){
-    sendHealthData();
-  }
+   readHealth();
+   if(measurementIndex >= (MAX_MEASUREMENTS_VALUES-1)){
+    //Measurement* filteredMeasurements = filterValidMeasurements(measurementData);
+    sendHealthData(measurementData);
+   }
+  
 }
+
